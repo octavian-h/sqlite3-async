@@ -1,0 +1,16 @@
+# JetBrains tools
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# VS Code
+.vscode/
+
+# Flutter/Dart
+/pubspec.lock
+**/doc/api/
+.dart_tool/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies

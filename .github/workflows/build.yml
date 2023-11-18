@@ -3,7 +3,7 @@ name: Build and test
 on:
   push:
     branches:
-      - master
+      - disable
   pull_request:
     branches:
       - master

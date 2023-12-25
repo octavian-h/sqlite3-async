@@ -4,10 +4,14 @@ import 'dart:isolate';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:logging/logging.dart';
+import 'package:logging_appenders/logging_appenders.dart';
 import 'package:sqlite3/sqlite3.dart';
 
 /// An opened sqlite3 database with async methods.
 class AsyncDatabase {
+  static final Logger _log = Logger((AsyncDatabase).toString());
+
   final Isolate _worker;
   final SendPort _workerPort;
 
@@ -31,6 +35,8 @@ class AsyncDatabase {
     bool uri = false,
     bool? mutex,
   }) async {
+    PrintAppender.setupLogging(level: Level.INFO);
+
     var receivePort = ReceivePort();
     var token = RootIsolateToken.instance;
     var worker = await Isolate.spawn(_executeCommand,
@@ -115,7 +121,8 @@ class AsyncDatabase {
           default:
             throw Exception("Unknown command type. type=${cmd.type}");
         }
-      } catch (e) {
+      } catch (e, s) {
+        _log.severe("Could not execute Sqlite command", e, s);
         cmd.sendPort.send(_AsyncDatabaseCommand(
             cmd.type, ourReceivePort.sendPort,
             body: e, isError: true));

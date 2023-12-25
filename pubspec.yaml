@@ -1,6 +1,6 @@
 name: sqlite3_async
 description: "Provides a subset of async operations on top of sqlite3 Database class."
-version: 1.0.2
+version: 1.0.3
 repository: https://github.com/octavian-h/sqlite3-async
 
 environment:
@@ -10,7 +10,9 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  sqlite3: ^2.1.0
+  logging: ^1.2.0
+  logging_appenders: ^1.2.0+1
+  sqlite3: ^2.3.0
 
 dev_dependencies:
   flutter_test:

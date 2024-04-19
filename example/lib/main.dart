@@ -42,6 +42,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   final myController = TextEditingController();
+  final formKey = GlobalKey<FormState>();
   List<String> items = [];
 
   @override
@@ -58,35 +59,54 @@ class _HomePageState extends State<HomePage> {
         title: Text(widget.title),
       ),
       body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            Form(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  TextFormField(controller: myController),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        await StorageUtils.addItem(myController.text);
-                        var readItems = await StorageUtils.readItems();
-                        setState(() {
-                          items = readItems;
-                        });
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Form(
+                key: formKey,
+                autovalidateMode: AutovalidateMode.onUserInteraction,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    TextFormField(
+                      controller: myController,
+                      decoration: const InputDecoration(labelText: "Item"),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return "Please enter some text";
+                        }
+                        return null;
                       },
-                      child: const Text("Submit"),
                     ),
-                  ),
-                ],
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: ElevatedButton(
+                        onPressed: insertItem,
+                        child: const Text("Submit"),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            Text("Items: ${items.toString()}"),
-          ],
+              Text("Items: ${items.toString()}"),
+            ],
+          ),
         ),
       ),
     );
+  }
+
+  void insertItem() async {
+    if (formKey.currentState!.validate()) {
+      await StorageUtils.addItem(myController.text);
+      var readItems = await StorageUtils.readItems();
+      setState(() {
+        items = readItems;
+      });
+    }
   }
 }
 

@@ -82,6 +82,29 @@ void main() {
     expect(fullInsertionsTime, greaterThan(triggeredInsertionsTime));
     await db.dispose();
   });
+
+  test('create custom function', () async {
+    var db = await AsyncDatabase.open(testDbPath);
+    await _createTable(db);
+
+    await db.createFunction(
+      functionName: 'get_int_from_row_name',
+      argumentCount: const AllowedArgumentCount(1),
+      function: (args) {
+        final [name as String] = args;
+        return int.parse(name.split('_')[1]);
+      },
+    );
+
+    for (int i = 0; i < 100; i++) {
+      await _insertItem("a_$i", db);
+    }
+
+    var rows = await db.select("SELECT name, get_int_from_row_name(name) as name_int FROM items");
+
+    expect(rows.every((element) => element['name'] == 'a_${element['name_int']}'), true);
+    await db.dispose();
+  });
 }
 
 Future<void> _insertItem(String itemName, AsyncDatabase db) {

@@ -8,6 +8,8 @@ import 'package:logging/logging.dart';
 import 'package:logging_appenders/logging_appenders.dart';
 import 'package:sqlite3/sqlite3.dart';
 
+export 'package:sqlite3/sqlite3.dart' show AllowedArgumentCount;
+
 /// An opened sqlite3 database with async methods.
 class AsyncDatabase {
   static final Logger _log = Logger((AsyncDatabase).toString());
@@ -80,6 +82,24 @@ class AsyncDatabase {
         body: _StatementParams(sql, parameters));
   }
 
+  // Register a custom function we can invoke from sql
+  Future<void> createFunction({
+    required String functionName,
+    required ScalarFunction function,
+    AllowedArgumentCount argumentCount = const AllowedArgumentCount.any(),
+    bool deterministic = false,
+    bool directOnly = true,
+  }) async {
+    return await _sendCommand("createFunction",
+        body: _CreateFunctionParams(
+          functionName: functionName,
+          function: function,
+          argumentCount: argumentCount,
+          deterministic: deterministic,
+          directOnly: directOnly,
+        ));
+  }
+
   /// Closes this database and releases associated resources.
   Future<void> dispose() async {
     await _sendCommand("dispose");
@@ -114,6 +134,9 @@ class AsyncDatabase {
             break;
           case "select":
             _selectSync(db!, cmd, ourReceivePort);
+            break;
+          case "createFunction":
+            _createFunctionSync(db!, cmd, ourReceivePort);
             break;
           case "dispose":
             _disposeSync(db!, cmd, ourReceivePort);
@@ -172,8 +195,20 @@ class AsyncDatabase {
         body: version));
   }
 
-  static Database _openSync(
-      _AsyncDatabaseCommand cmd, ReceivePort ourReceivePort) {
+  static void _createFunctionSync(
+      Database db, _AsyncDatabaseCommand cmd, ReceivePort ourReceivePort) {
+    _CreateFunctionParams params = cmd.body;
+    db.createFunction(
+      functionName: params.functionName,
+      function: params.function,
+      argumentCount: params.argumentCount,
+      deterministic: params.deterministic,
+      directOnly: params.directOnly,
+    );
+    cmd.sendPort.send(_AsyncDatabaseCommand(cmd.type, ourReceivePort.sendPort));
+  }
+
+  static Database _openSync(_AsyncDatabaseCommand cmd, ReceivePort ourReceivePort) {
     _OpenDatabaseParams params = cmd.body;
     Database db = sqlite3.open(params.filename,
         vfs: params.vfs,
@@ -225,4 +260,21 @@ class _StatementParams {
   final List<Object?> parameters;
 
   const _StatementParams(this.sql, this.parameters);
+}
+
+@immutable
+class _CreateFunctionParams {
+  final String functionName;
+  final ScalarFunction function;
+  final AllowedArgumentCount argumentCount;
+  final bool deterministic;
+  final bool directOnly;
+
+  const _CreateFunctionParams({
+    required this.functionName,
+    required this.function,
+    this.argumentCount = const AllowedArgumentCount.any(),
+    this.deterministic = false,
+    this.directOnly = true,
+  });
 }

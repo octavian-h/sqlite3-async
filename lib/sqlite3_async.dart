@@ -208,7 +208,8 @@ class AsyncDatabase {
     cmd.sendPort.send(_AsyncDatabaseCommand(cmd.type, ourReceivePort.sendPort));
   }
 
-  static Database _openSync(_AsyncDatabaseCommand cmd, ReceivePort ourReceivePort) {
+  static Database _openSync(
+      _AsyncDatabaseCommand cmd, ReceivePort ourReceivePort) {
     _OpenDatabaseParams params = cmd.body;
     Database db = sqlite3.open(params.filename,
         vfs: params.vfs,

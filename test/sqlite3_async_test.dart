@@ -100,9 +100,12 @@ void main() {
       await _insertItem("a_$i", db);
     }
 
-    var rows = await db.select("SELECT name, get_int_from_row_name(name) as name_int FROM items");
+    var rows = await db.select(
+        "SELECT name, get_int_from_row_name(name) as name_int FROM items");
 
-    expect(rows.every((element) => element['name'] == 'a_${element['name_int']}'), true);
+    expect(
+        rows.every((element) => element['name'] == 'a_${element['name_int']}'),
+        true);
     await db.dispose();
   });
 }

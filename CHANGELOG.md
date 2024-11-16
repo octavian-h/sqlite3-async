@@ -1,3 +1,8 @@
+## 1.0.6
+
+* Update dependencies
+* [@vorlovsky](https://github.com/vorlovsky): added createFunction async method
+
 ## 1.0.5
 
 * Update dependencies

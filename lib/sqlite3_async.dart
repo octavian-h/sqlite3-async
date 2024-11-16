@@ -1,4 +1,4 @@
-library sqlite3_async;
+library;
 
 import 'dart:isolate';
 

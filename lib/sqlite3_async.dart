@@ -100,6 +100,18 @@ class AsyncDatabase {
         ));
   }
 
+  // Register a custom collation
+  Future<void> createCollation({
+    required String name,
+    required CollatingFunction function,
+  }) async {
+    return await _sendCommand("createCollation",
+        body: _CreateCollationParams(
+          name: name,
+          function: function,
+        ));
+  }
+
   /// Closes this database and releases associated resources.
   Future<void> dispose() async {
     await _sendCommand("dispose");
@@ -137,6 +149,9 @@ class AsyncDatabase {
             break;
           case "createFunction":
             _createFunctionSync(db!, cmd, ourReceivePort);
+            break;
+          case "createCollation":
+            _createCollationSync(db!, cmd, ourReceivePort);
             break;
           case "dispose":
             _disposeSync(db!, cmd, ourReceivePort);
@@ -208,8 +223,17 @@ class AsyncDatabase {
     cmd.sendPort.send(_AsyncDatabaseCommand(cmd.type, ourReceivePort.sendPort));
   }
 
-  static Database _openSync(
-      _AsyncDatabaseCommand cmd, ReceivePort ourReceivePort) {
+  static void _createCollationSync(
+      Database db, _AsyncDatabaseCommand cmd, ReceivePort ourReceivePort) {
+    _CreateCollationParams params = cmd.body;
+    db.createCollation(
+      name: params.name,
+      function: params.function,
+    );
+    cmd.sendPort.send(_AsyncDatabaseCommand(cmd.type, ourReceivePort.sendPort));
+  }
+
+  static Database _openSync(_AsyncDatabaseCommand cmd, ReceivePort ourReceivePort) {
     _OpenDatabaseParams params = cmd.body;
     Database db = sqlite3.open(params.filename,
         vfs: params.vfs,
@@ -277,5 +301,16 @@ class _CreateFunctionParams {
     this.argumentCount = const AllowedArgumentCount.any(),
     this.deterministic = false,
     this.directOnly = true,
+  });
+}
+
+@immutable
+class _CreateCollationParams {
+  final String name;
+  final CollatingFunction function;
+
+  const _CreateCollationParams({
+    required this.name,
+    required this.function,
   });
 }

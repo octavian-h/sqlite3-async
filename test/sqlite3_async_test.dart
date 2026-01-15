@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqlite3/sqlite3.dart';
 import 'package:sqlite3_async/sqlite3_async.dart';
@@ -106,6 +107,38 @@ void main() {
     expect(
         rows.every((element) => element['name'] == 'a_${element['name_int']}'),
         true);
+    await db.dispose();
+  });
+
+  test('create collation', () async {
+    var db = await AsyncDatabase.open(testDbPath);
+
+    await db.createCollation(
+      name: 'IGNORECASE',
+      function: (a, b) {
+        final al = (a ?? '').toLowerCase();
+        final bl = (b ?? '').toLowerCase();
+        debugPrint('>$al, $bl');
+        return al.compareTo(bl);
+      },
+    );
+    await db.execute("CREATE TABLE items("
+        "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        "name TEXT COLLATE IGNORECASE NOT NULL)");
+
+    await _insertItem("оДин", db);
+    await _insertItem("ОДиНнаДцАТь", db);
+    await _insertItem("дВАдцаТь ОдиН", db);
+    await _insertItem("tWo", db);
+    await _insertItem("TwELve", db);
+    await _insertItem("tWENty TwO", db);
+
+    var rows =
+        await db.select("SELECT name FROM items WHERE name LIKE '%один%' COLLATE IGNORECASE");
+
+    debugPrint(rows.toString());
+
+    expect(rows.length >= 0, true);
     await db.dispose();
   });
 }

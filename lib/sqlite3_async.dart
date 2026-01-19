@@ -8,7 +8,8 @@ import 'package:logging/logging.dart';
 import 'package:logging_appenders/logging_appenders.dart';
 import 'package:sqlite3/sqlite3.dart';
 
-export 'package:sqlite3/sqlite3.dart' show AllowedArgumentCount, sqlite3, SqliteExtension;
+export 'package:sqlite3/sqlite3.dart'
+    show AllowedArgumentCount, sqlite3, SqliteExtension;
 
 /// An opened sqlite3 database with async methods.
 class AsyncDatabase {
@@ -82,7 +83,7 @@ class AsyncDatabase {
         body: _StatementParams(sql, parameters));
   }
 
-  // Register a custom function we can invoke from sql
+  /// Register a custom function we can invoke from sql
   Future<void> createFunction({
     required String functionName,
     required ScalarFunction function,
@@ -113,8 +114,15 @@ class AsyncDatabase {
   }
 
   /// Closes this database and releases associated resources.
+  @Deprecated('Call close() instead')
   Future<void> dispose() async {
-    await _sendCommand("dispose");
+    await _sendCommand("close");
+    _worker.kill();
+  }
+
+  /// Closes this database and releases associated resources.
+  Future<void> close() async {
+    await _sendCommand("close");
     _worker.kill();
   }
 
@@ -153,8 +161,8 @@ class AsyncDatabase {
           case "createCollation":
             _createCollationSync(db!, cmd, ourReceivePort);
             break;
-          case "dispose":
-            _disposeSync(db!, cmd, ourReceivePort);
+          case "close":
+            _closeSync(db!, cmd, ourReceivePort);
             break;
           default:
             throw Exception("Unknown command type. type=${cmd.type}");
@@ -168,9 +176,9 @@ class AsyncDatabase {
     }
   }
 
-  static void _disposeSync(
+  static void _closeSync(
       Database db, _AsyncDatabaseCommand cmd, ReceivePort ourReceivePort) {
-    db.dispose();
+    db.close();
     cmd.sendPort.send(_AsyncDatabaseCommand(cmd.type, ourReceivePort.sendPort));
     ourReceivePort.close();
   }
@@ -233,7 +241,8 @@ class AsyncDatabase {
     cmd.sendPort.send(_AsyncDatabaseCommand(cmd.type, ourReceivePort.sendPort));
   }
 
-  static Database _openSync(_AsyncDatabaseCommand cmd, ReceivePort ourReceivePort) {
+  static Database _openSync(
+      _AsyncDatabaseCommand cmd, ReceivePort ourReceivePort) {
     _OpenDatabaseParams params = cmd.body;
     Database db = sqlite3.open(params.filename,
         vfs: params.vfs,

@@ -124,27 +124,28 @@ class LoadingPage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             FutureBuilder<void>(
-                future: StorageUtils.init(),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.none ||
-                      snapshot.connectionState == ConnectionState.waiting) {
-                    return Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        SizedBox.fromSize(
-                          size: const Size(16, 16),
-                          child: const CircularProgressIndicator(),
-                        ),
-                      ],
-                    );
-                  }
+              future: StorageUtils.init(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.none ||
+                    snapshot.connectionState == ConnectionState.waiting) {
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      SizedBox.fromSize(
+                        size: const Size(16, 16),
+                        child: const CircularProgressIndicator(),
+                      ),
+                    ],
+                  );
+                }
 
-                  SchedulerBinding.instance.addPostFrameCallback((_) {
-                    Navigator.pushReplacementNamed(context, HomePage.route);
-                  });
-                  return Container();
-                }),
+                SchedulerBinding.instance.addPostFrameCallback((_) {
+                  Navigator.pushReplacementNamed(context, HomePage.route);
+                });
+                return Container();
+              },
+            ),
           ],
         ),
       ),
@@ -163,9 +164,11 @@ class StorageUtils {
     var dbPath = path.join(databaseDir.path, "items.db");
     _itemsDb = await AsyncDatabase.open(dbPath);
     await _itemsDb!.execute("DROP TABLE IF EXISTS items");
-    await _itemsDb!.execute("CREATE TABLE items("
-        "id INTEGER PRIMARY KEY AUTOINCREMENT,"
-        "name TEXT NOT NULL)");
+    await _itemsDb!.execute(
+      "CREATE TABLE items("
+      "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+      "name TEXT NOT NULL)",
+    );
   }
 
   static Future<void> addItem(String name) {
@@ -173,8 +176,8 @@ class StorageUtils {
   }
 
   static Future<List<String>> readItems() async {
-    return (await _itemsDb!.select("SELECT * FROM items"))
-        .map((e) => e["name"].toString())
-        .toList();
+    return (await _itemsDb!.select(
+      "SELECT * FROM items",
+    )).map((e) => e["name"].toString()).toList();
   }
 }

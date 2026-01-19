@@ -45,9 +45,12 @@ void main() async {
   var resultSet = await db
       .select("SELECT count(id) AS c FROM items");
   print('Results: $resultSet');
-  await db.dispose();
+  await db.close();
 }
 ```
+
+See a full project that is using sqlite3-async in
+the [example](https://github.com/octavian-h/sqlite3-async/tree/master/example) folder.
 
 ## Additional information
 

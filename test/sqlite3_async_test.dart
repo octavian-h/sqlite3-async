@@ -25,18 +25,20 @@ void main() {
 
     expect(userVersion, expectedUserVersion);
 
-    await db.dispose();
+    await db.close();
   });
 
   test('wrong SQL command', () async {
     var db = await AsyncDatabase.open(testDbPath);
+
     try {
       await db.execute("wrong command");
       fail("The exception wasn't thrown");
     } catch (e) {
       expect(e.toString(), startsWith("SqliteException(1): while executing"));
     }
-    await db.dispose();
+
+    await db.close();
   });
 
   test('CRUD operations', () async {
@@ -45,21 +47,19 @@ void main() {
     await _insertItem("first", db);
     await _insertItem("second", db);
     var secondId = await db.getLastInsertRowId();
-
     var actualSecondId = await db.select("SELECT id FROM items WHERE name=?",
         ["second"]).then((value) => value.first["id"] as int);
     expect(actualSecondId, secondId);
-    await db.dispose();
+    await db.close();
 
     var db2 = await AsyncDatabase.open(testDbPath, mode: OpenMode.readOnly);
     expect(await _countItems(db2), 2);
-    await db2.dispose();
+    await db2.close();
   });
 
   test('await with multiple inserts', () async {
     var db = await AsyncDatabase.open(testDbPath);
     await _createTable(db);
-
     List<Future<void>> futures = [];
     var triggeredInsertionsStart = DateTime.now().millisecondsSinceEpoch;
     for (int i = 0; i < 100; i++) {
@@ -70,6 +70,7 @@ void main() {
     for (var future in futures) {
       await future;
     }
+
     expect(await _countItems(db), 100);
 
     var fullInsertionsStart = DateTime.now().millisecondsSinceEpoch;
@@ -78,9 +79,11 @@ void main() {
     }
     var fullInsertionsTime =
         DateTime.now().millisecondsSinceEpoch - fullInsertionsStart;
+
     expect(await _countItems(db), 200);
     expect(fullInsertionsTime, greaterThan(triggeredInsertionsTime));
-    await db.dispose();
+
+    await db.close();
   });
 
   test('create custom function', () async {
@@ -103,9 +106,11 @@ void main() {
     var rows = await db.select(
         "SELECT name, get_int_from_row_name(name) as name_int FROM items");
 
-    expect(rows.every((element) => element['name'] == 'a_${element['name_int']}'), true);
+    expect(
+        rows.every((element) => element['name'] == 'a_${element['name_int']}'),
+        true);
 
-    await db.dispose();
+    await db.close();
   });
 
   test('create collation', () async {
@@ -136,7 +141,8 @@ void main() {
     );
 
     // Test 2: Collation affects WHERE comparison
-    var foundAlice = await db.select("SELECT name FROM items WHERE name = 'ALICE'");
+    var foundAlice =
+        await db.select("SELECT name FROM items WHERE name = 'ALICE'");
     expect(foundAlice.length, 1);
     expect(foundAlice.first['name'], 'alice');
 
@@ -145,7 +151,7 @@ void main() {
     expect(foundBob.length, 1);
     expect(foundBob.first['name'], 'Bob');
 
-    await db.dispose();
+    await db.close();
   });
 }
 

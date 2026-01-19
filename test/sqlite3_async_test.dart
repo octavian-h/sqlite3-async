@@ -103,9 +103,48 @@ void main() {
     var rows = await db.select(
         "SELECT name, get_int_from_row_name(name) as name_int FROM items");
 
+    expect(rows.every((element) => element['name'] == 'a_${element['name_int']}'), true);
+
+    await db.dispose();
+  });
+
+  test('create collation', () async {
+    var db = await AsyncDatabase.open(testDbPath);
+
+    await db.createCollation(
+      name: 'IGNORECASE',
+      function: (a, b) {
+        final al = (a ?? '').toLowerCase();
+        final bl = (b ?? '').toLowerCase();
+        return al.compareTo(bl);
+      },
+    );
+
+    await db.execute("CREATE TABLE items("
+        "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        "name TEXT COLLATE IGNORECASE NOT NULL)");
+
+    await _insertItem("Charlie", db);
+    await _insertItem("alice", db);
+    await _insertItem("Bob", db);
+
+    // Test 1: Collation affects ORDER BY
+    var orderedRows = await db.select("SELECT name FROM items ORDER BY name");
     expect(
-        rows.every((element) => element['name'] == 'a_${element['name_int']}'),
-        true);
+      orderedRows.map((r) => r['name']).toList(),
+      ['alice', 'Bob', 'Charlie'],
+    );
+
+    // Test 2: Collation affects WHERE comparison
+    var foundAlice = await db.select("SELECT name FROM items WHERE name = 'ALICE'");
+    expect(foundAlice.length, 1);
+    expect(foundAlice.first['name'], 'alice');
+
+    // Test 3: Case-insensitive comparison works
+    var foundBob = await db.select("SELECT name FROM items WHERE name = 'bob'");
+    expect(foundBob.length, 1);
+    expect(foundBob.first['name'], 'Bob');
+
     await db.dispose();
   });
 }

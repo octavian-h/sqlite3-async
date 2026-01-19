@@ -8,7 +8,7 @@ import 'package:logging/logging.dart';
 import 'package:logging_appenders/logging_appenders.dart';
 import 'package:sqlite3/sqlite3.dart';
 
-export 'package:sqlite3/sqlite3.dart' show AllowedArgumentCount;
+export 'package:sqlite3/sqlite3.dart' show AllowedArgumentCount, sqlite3, SqliteExtension;
 
 /// An opened sqlite3 database with async methods.
 class AsyncDatabase {

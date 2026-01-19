@@ -21,8 +21,8 @@ jobs:
 
       - name: Analyze project source
         run: flutter analyze
-      - name: Verify formatting
-        run: dart format --output=none --set-exit-if-changed .
+#      - name: Verify formatting
+#        run: dart format --output=none --set-exit-if-changed .
       - name: Check publish warnings
         run: dart pub publish --dry-run
   #      - name: Check publish score

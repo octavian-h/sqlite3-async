@@ -5,6 +5,10 @@ on:
     tags:
       - 'v[0-9]+.[0-9]+.[0-9]+*'
 
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   publish:
     runs-on: ubuntu-latest
@@ -16,9 +20,5 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Setup Pub Credentials
-        run: |
-          mkdir -p $XDG_CONFIG_HOME/dart
-          echo '${{ secrets.PUB_CREDENTIALS }}' > "$XDG_CONFIG_HOME/dart/pub-credentials.json"
       - name: Publish
         run: flutter pub publish --force

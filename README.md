@@ -12,6 +12,8 @@ This package provides async operations for:
 - executing a SQL command
 - configuring DB user version
 - getting last inserted row id
+- executing a custom function
+- create collation
 
 ## Getting started
 

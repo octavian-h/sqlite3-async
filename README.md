@@ -2,7 +2,7 @@
 
 [![pub package](https://img.shields.io/pub/v/sqlite3_async.svg)](https://pub.dev/packages/sqlite3_async)
 
-Provides a subset of async operations on top of [sqlite3](https://pub.dev/packages/sqlite3) plugin.
+An async sqlite package that provides a subset of operations on top of [sqlite3](https://pub.dev/packages/sqlite3) plugin.
 
 ## Features
 
@@ -13,7 +13,7 @@ This package provides async operations for:
 - configuring DB user version
 - getting last inserted row id
 - executing a custom function
-- create collation
+- creating collations
 
 ## Getting started
 
@@ -22,14 +22,6 @@ To install this package run:
 ```bash
 flutter pub add sqlite3_async
 ```
-
-For Flutter applications you need to add the native SQLite library with:
-
-```bash
-flutter pub add sqlite3_flutter_libs
-```
-
-For other platforms, read [sqlite3 docs](https://pub.dev/packages/sqlite3#supported-platforms)
 
 ## Usage
 

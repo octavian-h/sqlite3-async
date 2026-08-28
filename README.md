@@ -14,6 +14,7 @@ This package provides async operations for:
 - getting last inserted row id
 - executing a custom function
 - creating collations
+- running a block of statements inside a transaction
 
 ## Getting started
 
@@ -39,6 +40,12 @@ void main() async {
   var resultSet = await db
       .select("SELECT count(id) AS c FROM items");
   print('Results: $resultSet');
+
+  await db.transaction(() async {
+    await db.execute("INSERT INTO items (name) VALUES (?)", ["ball"]);
+    await db.execute("INSERT INTO items (name) VALUES (?)", ["kite"]);
+  });
+
   await db.close();
 }
 ```

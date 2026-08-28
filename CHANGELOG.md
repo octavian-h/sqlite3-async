@@ -1,3 +1,13 @@
+## 1.1.0
+
+* Update dependencies (sqlite3 to 3.5.2 and other transitive packages)
+* Add `AsyncDatabase.transaction()` helper to run a callback within a `BEGIN`/`COMMIT`/`ROLLBACK` block
+* `close()`/`dispose()` are now idempotent and calling any method after close throws a `StateError`
+* Errors thrown in the worker isolate now preserve their original stack trace and are surfaced as `AsyncDatabaseException`
+* Add a `Finalizer` to automatically terminate the worker isolate if an `AsyncDatabase` is garbage collected without being closed
+* Internal isolate command protocol refactored to use a dispatch map instead of a switch statement
+* Split library internals into individual files under `lib/src/`
+
 ## 1.0.9
 
 * Update dependencies

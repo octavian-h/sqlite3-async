@@ -153,6 +153,38 @@ void main() {
 
     await db.close();
   });
+
+  test('transaction commits on success', () async {
+    var db = await AsyncDatabase.open(testDbPath);
+    await _createTable(db);
+
+    await db.transaction(() async {
+      await _insertItem("first", db);
+      await _insertItem("second", db);
+    });
+
+    expect(await _countItems(db), 2);
+
+    await db.close();
+  });
+
+  test('transaction rolls back on error', () async {
+    var db = await AsyncDatabase.open(testDbPath);
+    await _createTable(db);
+    await _insertItem("existing", db);
+
+    await expectLater(
+      db.transaction(() async {
+        await _insertItem("second", db);
+        throw Exception("boom");
+      }),
+      throwsException,
+    );
+
+    expect(await _countItems(db), 1);
+
+    await db.close();
+  });
 }
 
 Future<void> _insertItem(String itemName, AsyncDatabase db) {

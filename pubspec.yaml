@@ -1,6 +1,6 @@
 name: sqlite3_async
 description: "Provides a subset of async operations on top of sqlite3 package."
-version: 1.0.9
+version: 1.1.0
 repository: https://github.com/octavian-h/sqlite3-async
 
 environment:

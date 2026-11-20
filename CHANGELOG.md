@@ -1,3 +1,9 @@
+## 1.1.1
+
+* Made transaction exclusive to the current isolate, so that it can be used in a multi-isolate environment without risk of deadlocks.
+* Clean up failed database opens. 
+* Used Dart’s standard developer logging framework instead of a custom one, so that logs can be configured and routed to different outputs.
+
 ## 1.1.0
 
 * Update dependencies (sqlite3 to 3.5.2 and other transitive packages)

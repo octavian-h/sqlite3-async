@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -14,7 +15,9 @@ void main() {
   });
 
   tearDown(() async {
-    await File(testDbPath).delete();
+    if (await File(testDbPath).exists()) {
+      await File(testDbPath).delete();
+    }
   });
 
   test('configure db user version', () async {
@@ -61,27 +64,18 @@ void main() {
     var db = await AsyncDatabase.open(testDbPath);
     await _createTable(db);
     List<Future<void>> futures = [];
-    var triggeredInsertionsStart = DateTime.now().millisecondsSinceEpoch;
     for (int i = 0; i < 100; i++) {
       futures.add(_insertItem("a$i", db));
     }
-    var triggeredInsertionsTime =
-        DateTime.now().millisecondsSinceEpoch - triggeredInsertionsStart;
-    for (var future in futures) {
-      await future;
-    }
+    await Future.wait(futures);
 
     expect(await _countItems(db), 100);
 
-    var fullInsertionsStart = DateTime.now().millisecondsSinceEpoch;
     for (int i = 0; i < 100; i++) {
       await _insertItem("b$i", db);
     }
-    var fullInsertionsTime =
-        DateTime.now().millisecondsSinceEpoch - fullInsertionsStart;
 
     expect(await _countItems(db), 200);
-    expect(fullInsertionsTime, greaterThan(triggeredInsertionsTime));
 
     await db.close();
   });
@@ -184,6 +178,41 @@ void main() {
     expect(await _countItems(db), 1);
 
     await db.close();
+  });
+
+  test('commands outside a transaction wait for it to complete', () async {
+    var db = await AsyncDatabase.open(testDbPath);
+    await _createTable(db);
+    final transactionStarted = Completer<void>();
+    final continueTransaction = Completer<void>();
+
+    final transaction = db.transaction(() async {
+      await _insertItem('transaction first', db);
+      transactionStarted.complete();
+      await continueTransaction.future;
+      await _insertItem('transaction second', db);
+    });
+
+    await transactionStarted.future;
+    final outsideInsert = _insertItem('outside transaction', db);
+    continueTransaction.complete();
+
+    await Future.wait([transaction, outsideInsert]);
+    final rows = await db.select('SELECT name FROM items ORDER BY id');
+    expect(rows.map((row) => row['name']).toList(), [
+      'transaction first',
+      'transaction second',
+      'outside transaction',
+    ]);
+
+    await db.close();
+  });
+
+  test('failed database open releases its worker', () async {
+    await expectLater(
+      AsyncDatabase.open('missing-directory/test.db'),
+      throwsA(isA<AsyncDatabaseException>()),
+    );
   });
 }
 

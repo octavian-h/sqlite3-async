@@ -5,14 +5,15 @@ publish_to: 'none'
 version: 1.0.0+1
 
 environment:
-  sdk: ^3.11.5
+  sdk: ^3.14.0
 
 dependencies:
-  cupertino_icons: ^1.0.9
+  cupertino_icons: ^2.0.0
+  material_ui: ^1.11.1
   flutter:
     sdk: flutter
   path: ^1.9.1
-  path_provider: ^2.1.5
+  path_provider: ^2.1.6
   sqlite3_async:
     path: ../
 

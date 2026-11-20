@@ -1,8 +1,8 @@
+import 'dart:async';
+import 'dart:developer' as developer;
 import 'dart:isolate';
 
 import 'package:flutter/services.dart';
-import 'package:logging/logging.dart';
-import 'package:logging_appenders/logging_appenders.dart';
 import 'package:sqlite3/sqlite3.dart';
 
 import 'async_database_command.dart';
@@ -16,13 +16,14 @@ import 'statement_params.dart';
 
 /// An opened sqlite3 database with async methods.
 class AsyncDatabase {
-  static final Logger _log = Logger((AsyncDatabase).toString());
+  static final Object _transactionZoneKey = Object();
   static final Finalizer<Isolate> _isolateFinalizer = Finalizer<Isolate>(
     (worker) => worker.kill(priority: Isolate.immediate),
   );
 
   final Isolate _worker;
   final SendPort _workerPort;
+  Future<void> _operationTail = Future<void>.value();
   bool _isClosed = false;
 
   AsyncDatabase._(this._worker, this._workerPort) {
@@ -47,23 +48,57 @@ class AsyncDatabase {
     bool uri = false,
     bool? mutex,
   }) async {
-    PrintAppender.setupLogging(level: Level.INFO);
+    final receivePort = ReceivePort();
+    final errorPort = ReceivePort();
+    final exitPort = ReceivePort();
+    final token = RootIsolateToken.instance;
+    Isolate? worker;
+    AsyncDatabase? asyncDatabase;
+    try {
+      worker = await Isolate.spawn(
+        _executeCommand,
+        AsyncDatabaseCommand('_init', receivePort.sendPort, body: token),
+        onError: errorPort.sendPort,
+        onExit: exitPort.sendPort,
+      );
 
-    var receivePort = ReceivePort();
-    var token = RootIsolateToken.instance;
-    var worker = await Isolate.spawn(
-      _executeCommand,
-      AsyncDatabaseCommand('_init', receivePort.sendPort, body: token),
-    );
-
-    AsyncDatabaseCommand response = await receivePort.first;
-    var workerPort = response.sendPort;
-    var asyncDatabase = AsyncDatabase._(worker, workerPort);
-    await asyncDatabase._sendCommand(
-      AsyncDatabaseCommandType.open,
-      body: OpenDatabaseParams(filename, vfs, mode, uri, mutex),
-    );
-    return asyncDatabase;
+      final response = await Future.any<AsyncDatabaseCommand>([
+        receivePort.first.then((message) {
+          if (message is! AsyncDatabaseCommand) {
+            throw AsyncDatabaseException(
+              'Invalid response while starting the database worker.',
+            );
+          }
+          return message;
+        }),
+        errorPort.first.then((error) {
+          throw AsyncDatabaseException(
+            'Database worker failed to start: $error',
+          );
+        }),
+        exitPort.first.then((_) {
+          throw AsyncDatabaseException(
+            'Database worker exited before it was ready.',
+          );
+        }),
+      ]);
+      asyncDatabase = AsyncDatabase._(worker, response.sendPort);
+      await asyncDatabase._sendCommand(
+        AsyncDatabaseCommandType.open,
+        body: OpenDatabaseParams(filename, vfs, mode, uri, mutex),
+      );
+      return asyncDatabase;
+    } catch (_) {
+      if (asyncDatabase != null) {
+        _isolateFinalizer.detach(asyncDatabase);
+      }
+      worker?.kill(priority: Isolate.immediate);
+      rethrow;
+    } finally {
+      receivePort.close();
+      errorPort.close();
+      exitPort.close();
+    }
   }
 
   /// Returns the application defined version of this database.
@@ -109,17 +144,25 @@ class AsyncDatabase {
   ///
   /// The transaction is committed if [action] completes successfully, or
   /// rolled back if it throws. The result of [action] is returned on
-  /// success.
+  /// success. Other database operations wait until the transaction completes.
+  /// Nested transactions are not supported.
   Future<T> transaction<T>(Future<T> Function() action) async {
-    await execute('BEGIN');
-    try {
-      final result = await action();
-      await execute('COMMIT');
-      return result;
-    } catch (_) {
-      await execute('ROLLBACK');
-      rethrow;
+    if (identical(Zone.current[_transactionZoneKey], this)) {
+      throw StateError('Nested transactions are not supported.');
     }
+    return _withOperationLock(
+      () => runZoned<Future<T>>(() async {
+        await execute('BEGIN');
+        try {
+          final result = await action();
+          await execute('COMMIT');
+          return result;
+        } catch (_) {
+          await execute('ROLLBACK');
+          rethrow;
+        }
+      }, zoneValues: {_transactionZoneKey: this}),
+    );
   }
 
   /// Register a custom function we can invoke from sql
@@ -162,10 +205,16 @@ class AsyncDatabase {
   /// Closes this database and releases associated resources.
   Future<void> close() async {
     if (_isClosed) return;
-    await _sendCommand(AsyncDatabaseCommandType.close);
-    _worker.kill(priority: Isolate.immediate);
-    _isClosed = true;
-    _isolateFinalizer.detach(this);
+    if (identical(Zone.current[_transactionZoneKey], this)) {
+      throw StateError('Cannot close the database inside a transaction.');
+    }
+    await _withOperationLock(() async {
+      if (_isClosed) return;
+      await _sendCommandUnlocked(AsyncDatabaseCommandType.close);
+      _isClosed = true;
+      _worker.kill(priority: Isolate.immediate);
+      _isolateFinalizer.detach(this);
+    });
   }
 
   /// A command handler receives the current [Database] (`null` until
@@ -229,7 +278,12 @@ class AsyncDatabase {
         }
         db = handler(db, cmd, ourReceivePort);
       } catch (e, s) {
-        _log.severe('Could not execute Sqlite command', e, s);
+        developer.log(
+          'Could not execute Sqlite command',
+          name: 'AsyncDatabase',
+          error: e,
+          stackTrace: s,
+        );
         cmd.sendPort.send(
           AsyncDatabaseCommand(
             cmd.type,
@@ -351,6 +405,30 @@ class AsyncDatabase {
     if (_isClosed) {
       throw StateError('AsyncDatabase is already closed.');
     }
+    if (identical(Zone.current[_transactionZoneKey], this)) {
+      return _sendCommandUnlocked(type, body: body);
+    }
+    return _withOperationLock(() {
+      if (_isClosed) {
+        throw StateError('AsyncDatabase is already closed.');
+      }
+      return _sendCommandUnlocked(type, body: body);
+    });
+  }
+
+  Future<T> _withOperationLock<T>(Future<T> Function() action) async {
+    final previous = _operationTail;
+    final release = Completer<void>();
+    _operationTail = release.future;
+    await previous;
+    try {
+      return await action();
+    } finally {
+      release.complete();
+    }
+  }
+
+  Future<dynamic> _sendCommandUnlocked(String type, {dynamic body}) async {
     var receivePort = ReceivePort();
     var command = AsyncDatabaseCommand(type, receivePort.sendPort, body: body);
     _workerPort.send(command);
